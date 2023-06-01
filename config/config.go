@@ -11,8 +11,8 @@ type Config struct {
 	Keywords []string `json:"keywords"`
 }
 
-func ReadConfig() (Config, error) {
-	configFile, err := ioutil.ReadFile("config.json")
+func ReadConfig(configFileName string) (Config, error) {
+	configFile, err := ioutil.ReadFile(configFileName)
 	if err != nil {
 		return Config{}, err
 	}

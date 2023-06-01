@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -14,14 +15,16 @@ import (
 )
 
 var logger *log.Logger
+var appDataDir string
 
 func init() {
-	logDir := filepath.Join(os.Getenv("LOCALAPPDATA"), "WallpaperGenerator", "Logs")
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		log.Fatalf("Cannot create log directory: %v", err)
+	appDataDir = path.Join(os.Getenv("APPDATA"), "WallpaperGenerator")
+
+	if err := os.MkdirAll(appDataDir, 0755); err != nil {
+		log.Fatalf("Cannot create app data directory: %v", err)
 	}
 
-	logFileName := filepath.Join(logDir, "logfile.log")
+	logFileName := filepath.Join(appDataDir, "logfile.log")
 	logFile, err := os.OpenFile(logFileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalf("Cannot create or open log file: %v", err)
@@ -30,31 +33,7 @@ func init() {
 	logger = log.New(logFile, "", log.LstdFlags)
 }
 
-func main() {
-
-	config, err := config.ReadConfig()
-	if err != nil {
-		logger.Printf("Error reading config file: %s", err)
-		panic(err)
-	}
-
-	rand.Seed(time.Now().UnixNano())
-	width, height, err := operations.GetDesktopResolution()
-	if err != nil {
-		logger.Printf("Error getting desktop resolution: %s", err)
-		panic(err)
-	}
-
-	logger.Printf("Detected Desktop Resolution: %dx%d\n", width, height)
-
-	userProfile, _ := os.UserHomeDir()
-	downloadsPath := filepath.Join(userProfile, "Downloads")
-	wallpapersPath := filepath.Join(downloadsPath, "wallpapers")
-
-	if _, err := os.Stat(wallpapersPath); os.IsNotExist(err) {
-		os.Mkdir(wallpapersPath, 0755)
-	}
-
+func imageSearchRoutine(config config.Config, wallpapersPath string, width, height int) {
 	for {
 		for _, keyword := range config.Keywords {
 			logger.Printf("Searching for keyword Image from %s\n", keyword)
@@ -84,6 +63,12 @@ func main() {
 			}
 		}
 
+		time.Sleep(24 * time.Hour)
+	}
+}
+
+func wallpaperSettingRoutine(wallpapersPath string) {
+	for {
 		files, err := ioutil.ReadDir(wallpapersPath)
 		if err != nil {
 			logger.Printf("Could not read directory: %s", err)
@@ -105,6 +90,40 @@ func main() {
 			logger.Printf("Set %s as wallpaper\n", randFile.Name())
 		}
 
-		time.Sleep(24 * time.Hour)
+		time.Sleep(1 * time.Hour)
 	}
+}
+
+func main() {
+
+	configFileName := filepath.Join(appDataDir, "config.json")
+
+	config, err := config.ReadConfig(configFileName)
+	if err != nil {
+		logger.Printf("Error reading config file: %s", err)
+		panic(err)
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	width, height, err := operations.GetDesktopResolution()
+	if err != nil {
+		logger.Printf("Error getting desktop resolution: %s", err)
+		panic(err)
+	}
+
+	logger.Printf("Detected Desktop Resolution: %dx%d\n", width, height)
+
+	userProfile, _ := os.UserHomeDir()
+	downloadsPath := filepath.Join(userProfile, "Downloads")
+	wallpapersPath := filepath.Join(downloadsPath, "wallpapers")
+
+	if _, err := os.Stat(wallpapersPath); os.IsNotExist(err) {
+		os.Mkdir(wallpapersPath, 0755)
+	}
+
+	go imageSearchRoutine(config, wallpapersPath, width, height)
+	go wallpaperSettingRoutine(wallpapersPath)
+
+	select {}
+
 }
