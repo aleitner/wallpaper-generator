@@ -33,8 +33,17 @@ func init() {
 	logger = log.New(logFile, "", log.LstdFlags)
 }
 
-func imageSearchRoutine(config config.Config, wallpapersPath string, width, height int) {
+func imageSearchRoutine(appDataDir, wallpapersPath string, width, height int) {
 	for {
+
+		configFileName := filepath.Join(appDataDir, "config.json")
+
+		config, err := config.ReadConfig(configFileName)
+		if err != nil {
+			logger.Printf("Error reading config file: %s", err)
+			panic(err)
+		}
+
 		for _, keyword := range config.Keywords {
 			logger.Printf("Searching for keyword Image from %s\n", keyword)
 
@@ -95,15 +104,6 @@ func wallpaperSettingRoutine(wallpapersPath string) {
 }
 
 func main() {
-
-	configFileName := filepath.Join(appDataDir, "config.json")
-
-	config, err := config.ReadConfig(configFileName)
-	if err != nil {
-		logger.Printf("Error reading config file: %s", err)
-		panic(err)
-	}
-
 	rand.Seed(time.Now().UnixNano())
 	width, height, err := operations.GetDesktopResolution()
 	if err != nil {
@@ -121,7 +121,7 @@ func main() {
 		os.Mkdir(wallpapersPath, 0755)
 	}
 
-	go imageSearchRoutine(config, wallpapersPath, width, height)
+	go imageSearchRoutine(appDataDir, wallpapersPath, width, height)
 	go wallpaperSettingRoutine(wallpapersPath)
 
 	select {}
